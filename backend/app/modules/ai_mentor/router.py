@@ -1,4 +1,4 @@
-import re
+﻿import re
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -8,6 +8,7 @@ from app.core.db import get_db
 from app.core.models import Challenge, Writeup, User, Event, Submission
 from app.core.security import current_user
 from app.core.config import settings
+from app.modules.ai_mentor.retrieval import retrieve_context
 
 router = APIRouter(tags=["Gioia | AI Mentor & Reports"])
 
@@ -52,11 +53,11 @@ async def hint(data: HintQuestion, db: Session = Depends(get_db), user: User = D
     w = db.scalar(select(Writeup).where(Writeup.challenge_id == c.id))
     if not w:
         raise HTTPException(404, "Curated writeup unavailable")
-    context = safe_text(retrieve(data.question, w.content))
+    context, retrieval_mode = await retrieve_context(data.question, w.content, settings.nexis_openai_api_key)
     answer, mode = await generate_hint(data.question, context)
     db.add(Event(user_id=user.id, challenge_id=c.id, kind="hint_requested"))
     db.commit()
-    return {"challenge_id": c.id, "hint": answer, "source": w.source, "mode": mode}
+    return {"challenge_id": c.id, "hint": answer, "source": w.source, "mode": mode, "retrieval_mode": retrieval_mode}
 
 @router.get("/reports/{challenge_id}")
 def report(challenge_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
