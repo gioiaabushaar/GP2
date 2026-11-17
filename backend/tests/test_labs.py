@@ -140,3 +140,15 @@ def test_unapproved_image_is_rejected(env):
         db.commit()
     assert client.post("/api/labs/start/1", headers=h).status_code == 400
     assert fake.alive == {}
+
+    def test_background_reaper_removes_expired_lab(env):
+    client, h, fake = env
+    sid = client.post("/api/labs/start/1", headers=h).json()["session_id"]
+    with SessionLocal() as db:
+        s = db.get(LabSession, sid)
+        s.started_at = s.started_at - timedelta(minutes=labs_router.LAB_TTL_MINUTES + 1)
+        db.commit()
+    assert labs_router._reap_once() == 1  # no API call involved
+    assert fake.alive == {}
+    with SessionLocal() as db:
+        assert db.get(LabSession, sid).status == "expired"

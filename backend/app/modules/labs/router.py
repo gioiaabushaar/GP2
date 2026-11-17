@@ -1,3 +1,5 @@
+import asyncio
+
 import logging
 import os
 import time
@@ -6,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.core.db import get_db
+from app.core.db import get_db, SessionLocal
 from app.core.models import Challenge, LabSession, Event, User
 from app.core.security import current_user
 from app.core.config import settings
@@ -136,3 +138,25 @@ def stop(session_id: int, db: Session = Depends(get_db), user: User = Depends(cu
     db.add(Event(user_id=user.id, challenge_id=s.challenge_id, kind="lab_stopped"))
     db.commit()
     return {"status": "stopped"}
+
+
+REAPER_INTERVAL_SECONDS = int(os.getenv("NEXIS_REAPER_INTERVAL_SECONDS", "60"))
+
+
+def _reap_once() -> int:
+    """One cleanup pass using its own DB session (runs outside any request)."""
+    if not settings.nexis_allow_docker:
+        return 0
+    with SessionLocal() as db:
+        return reap_expired(db, client_or_503())
+async def reaper_loop() -> None:
+    """Background task: remove expired labs even when nobody calls the API (FR2)."""
+    while True:
+        await asyncio.sleep(REAPER_INTERVAL_SECONDS)
+        try:
+            await asyncio.to_thread(_reap_once)
+        except HTTPException:
+            log.warning("Reaper skipped: Docker unavailable")
+        except Exception:
+            log.exception("Background reaper pass failed; will retry")
+            
