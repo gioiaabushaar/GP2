@@ -159,4 +159,3 @@ async def reaper_loop() -> None:
             log.warning("Reaper skipped: Docker unavailable")
         except Exception:
             log.exception("Background reaper pass failed; will retry")
-            
