@@ -1,6 +1,6 @@
 # Lab Template Contract
 
-Status: **Draft**. Pending review by Sura Alomari (Backend & AI/RAG) and Ali Alomari (Architecture & DevOps) before any challenge is linked to a template.
+Status: **Draft**. Pending review by Sura Alomari and Ali Alomari before any challenge is linked to a template.
 
 Each lab template defines one Docker image with a fixed toolset. A challenge references exactly one template through `lab_template_id`. Each student receives a separate container from that template.
 
