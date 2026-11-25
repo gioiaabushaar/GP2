@@ -14,6 +14,7 @@ from app.modules.challenges.router import router as challenges
 from app.modules.ai_mentor.router import router as ai
 from app.modules.labs.router import router as labs, reaper_loop
 from app.modules.analytics.router import router as analytics
+from app.modules.web_labs.router import router as web_labs
 
 
 @asynccontextmanager
@@ -53,6 +54,7 @@ app.include_router(challenges, prefix="/api/challenges")
 app.include_router(ai, prefix="/api/ai")
 app.include_router(labs, prefix="/api/labs")
 app.include_router(analytics, prefix="/api/analytics")
+app.include_router(web_labs, prefix="/api/web-labs")
 
 
 @app.get("/api/health", tags=["System"])

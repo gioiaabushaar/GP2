@@ -14,6 +14,7 @@ const NAV: Record<Role, NavItem[]> = {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/challenges", label: "Challenges" },
     { href: "/lab", label: "Active Lab", match: "/lab" },
+    { href: "/web-labs", label: "Web Labs" },
     { href: "/reports", label: "Reports" },
   ],
   instructor: [
@@ -21,6 +22,7 @@ const NAV: Record<Role, NavItem[]> = {
     { href: "/instructor/insights", label: "Student Insights" },
     { href: "/instructor/deploy", label: "Deploy Labs" },
     { href: "/instructor/content", label: "Manage Challenges" },
+    { href: "/instructor/web-exams", label: "Web Lab Exams" },
   ],
 };
 

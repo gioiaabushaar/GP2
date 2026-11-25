@@ -29,10 +29,13 @@ The website forwards every `/api/*` request to the backend (see `next.config.ts`
 | Student | `/challenges` | challenge library with category, difficulty and status filters |
 | Student | `/lab/[id]` | lab start/stop/restart, countdown, behaviour panel, AI mentor chat, flag submission |
 | Student | `/reports`, `/reports/[id]` | post-challenge report from `GET /api/ai/reports/{id}` |
+| Student | `/web-labs` | the course's timed web lab exams and the full PortSwigger lab library (`/api/web-labs`) |
+| Student | `/web-labs/exam/[quizId]` | exam: instructions, 3 random labs, server-side countdown, lock screen when time is over |
 | Instructor | `/instructor` | platform overview, success rate, students at risk, top students |
 | Instructor | `/instructor/insights` | every student's progress and risk, with a profile panel |
 | Instructor | `/instructor/deploy` | one-click deploy, **simulated** until the lab manager deploy API (FR6) exists |
 | Instructor | `/instructor/content` | create a challenge (`POST /api/challenges`) |
+| Instructor | `/instructor/web-exams` | live list of exam attempts with the labs each student marked solved, and Unlock |
 
 The role in the login response decides which side a user sees.
 
