@@ -25,16 +25,31 @@ def make_token(user: User) -> str:
 def current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer), db: Session = Depends(get_db)) -> User:
     if not credentials:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Login required")
-    try:
-        payload = jwt.decode(credentials.credentials, settings.nexis_secret_key, algorithms=["HS256"])
-        uid = int(payload["sub"])
-    except (InvalidTokenError, KeyError, TypeError, ValueError):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
-    user = db.get(User, uid)
-    if not user:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Account unavailable")
-    return user
 
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.nexis_secret_key,
+            algorithms=["HS256"],
+            options={"require": ["sub", "exp"]},
+        )
+        uid = int(payload["sub"])
+
+    except (InvalidTokenError, KeyError, TypeError, ValueError):
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Invalid or expired token"
+        )
+
+    user = db.get(User, uid)
+
+    if not user:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Account unavailable"
+        )
+
+    return user
 def instructor(user: User = Depends(current_user)) -> User:
     if user.role != "instructor":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Instructor access required")
