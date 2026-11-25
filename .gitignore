@@ -17,3 +17,5 @@ test-reports/
 credentials.json
 secrets.json
 local-instructor-credentials.txt
+*.nexis_ai_vectors.sqlite3
+*.nexis_ai_vectors.sqlite3-*
