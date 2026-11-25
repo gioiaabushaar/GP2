@@ -82,3 +82,34 @@ export type LabStart = {
 };
 
 export type LabSession = { id: number; challenge_id: number; status: string; started_at: string };
+
+// ---------- Web Labs (PortSwigger library and timed exams) ----------
+
+export type WebLab = { title: string; url: string };
+
+export type WebLibrary = { source: string; total: number; topics: { name: string; labs: WebLab[] }[] };
+
+export type WebExam = {
+  id: string;
+  title: string;
+  description: string;
+  duration_minutes: number;
+  labs_per_attempt: number;
+  pool_size: number;
+  rules: string[];
+  pool?: WebLab[];
+};
+
+export type WebAttempt = {
+  id: number;
+  quiz_id: string;
+  quiz_title: string;
+  status: "active" | "locked" | "reset";
+  started_at: string;
+  ends_at: string;
+  seconds_left: number;
+  labs: { index: number; title: string; url: string; solved: boolean }[];
+  solved_count: number;
+  reset_at: string | null;
+  student?: { id: number; full_name: string; email: string };
+};

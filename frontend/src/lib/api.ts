@@ -11,6 +11,9 @@ import type {
   MyScore,
   SubmitResult,
   User,
+  WebAttempt,
+  WebExam,
+  WebLibrary,
 } from "./types";
 
 const TOKEN_KEY = "nexis.token";
@@ -70,8 +73,9 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
   }
   if (!res.ok) {
     if (res.status === 401 && auth && token) onUnauthorized();
-    if ((res.status === 500 || res.status === 502 || res.status === 504) && !body) {
-      throw new ApiError(res.status, "Cannot reach the NEXIS server. Is the backend running?");
+    if (res.status >= 500 && !body) {
+      // Either the backend failed, or the Next.js proxy could not reach it at all.
+      throw new ApiError(res.status, `The NEXIS server could not complete this request (error ${res.status}). Check that the backend is running.`);
     }
     throw new ApiError(res.status, errorMessage(body, res.status));
   }
@@ -107,4 +111,14 @@ export const api = {
   startLab: (challenge_id: number) => post<LabStart>(`/api/labs/start/${challenge_id}`),
   myLabs: () => request<LabSession[]>("/api/labs/mine"),
   stopLab: (session_id: number) => request<{ status: string }>(`/api/labs/${session_id}`, { method: "DELETE" }),
+
+  webLibrary: () => request<WebLibrary>("/api/web-labs"),
+  webExams: () => request<WebExam[]>("/api/web-labs/quizzes"),
+  startExam: (quiz_id: string) => post<WebAttempt>(`/api/web-labs/quizzes/${quiz_id}/start`),
+  currentExam: () => request<WebAttempt | null>("/api/web-labs/attempts/current"),
+  markLab: (attempt_id: number, index: number, solved: boolean) =>
+    post<WebAttempt>(`/api/web-labs/attempts/${attempt_id}/labs/${index}/solved`, { solved }),
+  finishExam: (attempt_id: number) => post<WebAttempt>(`/api/web-labs/attempts/${attempt_id}/finish`),
+  allExamAttempts: (quiz_id?: string) => request<WebAttempt[]>(`/api/web-labs/attempts${quiz_id ? `?quiz_id=${quiz_id}` : ""}`),
+  unlockExam: (attempt_id: number) => post<WebAttempt>(`/api/web-labs/attempts/${attempt_id}/reset`),
 };
