@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, EmailStr
 from sqlalchemy import select
@@ -23,11 +24,28 @@ def safe_user(u: User):
 @router.post("/register", status_code=201)
 def register(data: Register, db: Session = Depends(get_db)):
     email = data.email.lower()
+
     if db.scalar(select(User).where(User.email == email)):
         raise HTTPException(409, "Email already registered")
-    user = User(email=email, full_name=data.full_name, password_hash=hash_password(data.password), role="student")
+
+    user = User(
+        email=email,
+        full_name=data.full_name,
+        password_hash=hash_password(data.password),
+        role="student"
+    )
+
     db.add(user)
-    db.commit()
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Email already registered"
+        )
+
     db.refresh(user)
     return safe_user(user)
 

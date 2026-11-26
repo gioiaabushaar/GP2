@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, ForeignKey, DateTime, Text, Boolean, UniqueConstraint
+from sqlalchemy import String, Integer, ForeignKey, DateTime, Text, Boolean, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -8,6 +8,14 @@ def now():
 
 class User(Base):
     __tablename__ = "users"
+
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('student', 'instructor')",
+            name="ck_users_role"
+        ),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(120))
