@@ -33,9 +33,9 @@ The website forwards every `/api/*` request to the backend (see `next.config.ts`
 | Student | `/web-labs/exam/[quizId]` | exam: instructions, 3 random labs, server-side countdown, lock screen when time is over |
 | Instructor | `/instructor` | platform overview, success rate, students at risk, top students |
 | Instructor | `/instructor/insights` | every student's progress and risk, with a profile panel |
-| Instructor | `/instructor/deploy` | one-click deploy, **simulated** until the lab manager deploy API (FR6) exists |
+| Instructor | `/instructor/deploy` | one-click deploy (**simulated** until the FR6 API exists); courses, capacity check and deployment history are real (`/api/courses`, `/api/deployments`) |
 | Instructor | `/instructor/content` | create a challenge (`POST /api/challenges`) |
-| Instructor | `/instructor/web-exams` | live list of exam attempts with the labs each student marked solved, and Unlock |
+| Instructor | `/instructor/web-exams` | tabs: **Live attempts** (unlock), **Exams** (create, edit, hide, delete, manage each pool), **Library** (add, edit, delete labs) |
 
 The role in the login response decides which side a user sees.
 
@@ -45,13 +45,14 @@ These demo features need backend work first, so the page shows a dash or a short
 
 - Learning pattern per student and strength/weakness per category (needs per-student behaviour events, FR7).
 - Most failed challenges (needs per-challenge metrics, FR8).
-- Real one-click deployment (FR6). The deploy page shows the planned flow, including the capacity check (32 GB host, 4 GB reserved, 256 MB per lab, so at most 112 labs).
+- Real one-click deployment (FR6). The deploy page shows the planned flow; the capacity check (32 GB host, 4 GB reserved, 256 MB per lab, so at most 112 labs) runs on the server and every request is recorded.
 - The lab target inside the Active Lab page. Lab containers currently have no network service to show.
 
 The learning pattern on the student's own lab and report pages is computed in the browser with the rules from the GP2 plan.
 
 ## Notes for developers
 
-- The login token is kept in `localStorage`; the plan's httpOnly cookie needs a backend change first.
+- All platform data comes from the API and lives in the database. The browser only keeps the login token and user (`localStorage`); the plan's httpOnly cookie needs a backend change first.
+- Instructors manage web lab exams, the lab library and courses from the website; nothing of that is hard-coded in the frontend.
 - Pages render in the browser only, because they depend on the stored login. `next.config.ts` therefore runs the dev-time "instant navigation" check only on segments that opt in.
 - `npm run lint` and `npx tsc --noEmit` must pass before a pull request.

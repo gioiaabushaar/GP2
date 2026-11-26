@@ -81,11 +81,11 @@ export type LabStart = {
   note: string;
 };
 
-export type LabSession = { id: number; challenge_id: number; status: string; started_at: string };
+export type LabSession = { id: number; challenge_id: number; status: string; started_at: string; expires_at: string };
 
 // ---------- Web Labs (PortSwigger library and timed exams) ----------
 
-export type WebLab = { title: string; url: string };
+export type WebLab = { id: number; title: string; url: string };
 
 export type WebLibrary = { source: string; total: number; topics: { name: string; labs: WebLab[] }[] };
 
@@ -97,8 +97,20 @@ export type WebExam = {
   labs_per_attempt: number;
   pool_size: number;
   rules: string[];
+  active: boolean;
   pool?: WebLab[];
 };
+
+export type WebExamInput = {
+  title: string;
+  description: string;
+  duration_minutes: number;
+  labs_per_attempt: number;
+  rules: string; // one rule per line
+  active: boolean;
+};
+
+export type LibraryLab = WebLab & { topic: string };
 
 export type WebAttempt = {
   id: number;
@@ -113,3 +125,21 @@ export type WebAttempt = {
   reset_at: string | null;
   student?: { id: number; full_name: string; email: string };
 };
+
+// ---------- Courses and deployments (instructor) ----------
+
+export type Course = { id: number; name: string };
+
+export type Deployment = {
+  id: number;
+  course_id: number | null;
+  course_name: string;
+  challenge_id: number | null;
+  challenge_title: string;
+  students: number;
+  status: "running" | "refused";
+  reason: string;
+  created_at: string;
+};
+
+export type Capacity = { host_ram_gb: number; reserved_gb: number; lab_memory_mb: number; max_labs: number };

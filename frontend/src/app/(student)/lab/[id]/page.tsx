@@ -1,17 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "@/lib/api";
-import { lastLab, learningPattern, parseServerDate } from "@/lib/insights";
+import { learningPattern, parseServerDate } from "@/lib/insights";
 import type { LabSession, SubmitResult } from "@/lib/types";
 import { Countdown, formatClock, useElapsedSeconds } from "@/components/countdown";
 import { MentorChat } from "@/components/mentor-chat";
 import { Badge, Button, ButtonLink, Card, ErrorText, Input, Modal, Notice, Spinner, difficultyTone } from "@/components/ui";
-
-const TTL_KEY = (sessionId: number) => `nexis.labTtl.${sessionId}`;
-const DEFAULT_TTL_MINUTES = 60; // backend default (NEXIS_LAB_TTL_MINUTES)
 
 export default function ActiveLab() {
   const id = Number(useParams<{ id: string }>().id);
@@ -26,32 +23,19 @@ export default function ActiveLab() {
     queryFn: () => api.report(id).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
   });
 
-  useEffect(() => {
-    if (challenge.data) lastLab.set(id);
-  }, [challenge.data, id]);
-
   const running = labs.data?.find((l) => l.status === "running");
   const mine = running?.challenge_id === id ? running : undefined;
   const otherRunning = running && running.challenge_id !== id ? running : undefined;
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["my-labs"] });
-  const start = useMutation({
-    mutationFn: () => api.startLab(id),
-    onSuccess: (res) => {
-      window.localStorage.setItem(TTL_KEY(res.session_id), String(res.expires_in_minutes));
-      refresh();
-    },
-  });
+  const start = useMutation({ mutationFn: () => api.startLab(id), onSuccess: refresh });
   const stop = useMutation({ mutationFn: (s: LabSession) => api.stopLab(s.id), onSuccess: refresh });
   const restart = useMutation({
     mutationFn: async (s: LabSession) => {
       await api.stopLab(s.id);
       return api.startLab(id);
     },
-    onSuccess: (res) => {
-      window.localStorage.setItem(TTL_KEY(res.session_id), String(res.expires_in_minutes));
-      refresh();
-    },
+    onSuccess: refresh,
   });
 
   const [result, setResult] = useState<SubmitResult | null>(null);
@@ -74,8 +58,8 @@ export default function ActiveLab() {
   if (challenge.error) return <ErrorText error={challenge.error} />;
   const c = challenge.data;
 
-  const ttl = mine ? Number(window.localStorage.getItem(TTL_KEY(mine.id))) || DEFAULT_TTL_MINUTES : null;
-  const endsAt = mine && ttl ? parseServerDate(mine.started_at).getTime() + ttl * 60_000 : null;
+  // The server says when the lab is removed (start time + the lab lifetime it is configured with).
+  const endsAt = mine ? parseServerDate(mine.expires_at).getTime() : null;
   const labError = start.error ?? stop.error ?? restart.error;
   const dockerOff = labError instanceof ApiError && labError.status === 503;
 

@@ -7,6 +7,8 @@ import { formatDate } from "@/lib/insights";
 import type { WebAttempt } from "@/lib/types";
 import { formatClock } from "@/components/countdown";
 import { Badge, Button, Card, EmptyState, ErrorText, PageHeader, Select, Spinner, Table } from "@/components/ui";
+import { ExamManager } from "@/components/web-labs/exam-manager";
+import { LibraryManager } from "@/components/web-labs/library-manager";
 
 function StatusBadge({ a }: { a: WebAttempt }) {
   if (a.status === "active") return <Badge tone="warn">Running · {formatClock(a.seconds_left)}</Badge>;
@@ -14,7 +16,38 @@ function StatusBadge({ a }: { a: WebAttempt }) {
   return <Badge tone="muted">Unlocked</Badge>;
 }
 
+const TABS = [
+  { id: "live", label: "Live attempts" },
+  { id: "exams", label: "Exams" },
+  { id: "library", label: "Library" },
+] as const;
+
 export default function WebLabExams() {
+  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("live");
+  return (
+    <>
+      <PageHeader title="Web Lab Exams" subtitle="Run the timed web lab exams, set them up, and manage the lab library. Everything here is stored in the database." />
+      <div className="mb-5 flex gap-1 border-b border-line" role="tablist">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition ${
+              tab === t.id ? "border-accent text-white" : "border-transparent text-muted hover:text-white"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === "live" ? <LiveAttempts /> : tab === "exams" ? <ExamManager /> : <LibraryManager />}
+    </>
+  );
+}
+
+function LiveAttempts() {
   const qc = useQueryClient();
   const [quiz, setQuiz] = useState("");
   const exams = useQuery({ queryKey: ["web-exams"], queryFn: api.webExams });
@@ -34,24 +67,20 @@ export default function WebLabExams() {
 
   return (
     <>
-      <PageHeader
-        title="Web Lab Exams"
-        subtitle="Live view of the PortSwigger exams. Unlock a station to let the student sit an exam again."
-        actions={
-          <Select value={quiz} onChange={(e) => setQuiz(e.target.value)} aria-label="Exam" className="w-44">
-            <option value="">All exams</option>
-            {(exams.data ?? []).map((q) => (
-              <option key={q.id} value={q.id}>
-                {q.title}
-              </option>
-            ))}
-          </Select>
-        }
-      />
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          {runningCount} running · {lockedCount} locked · refreshes every 10 seconds. Solved marks are reported by the student; check their screen to confirm.
+        </p>
+        <Select value={quiz} onChange={(e) => setQuiz(e.target.value)} aria-label="Exam" className="w-44">
+          <option value="">All exams</option>
+          {(exams.data ?? []).map((q) => (
+            <option key={q.id} value={q.id}>
+              {q.title}
+            </option>
+          ))}
+        </Select>
+      </div>
       <ErrorText error={attempts.error ?? exams.error ?? unlock.error} />
-      <p className="mb-3 text-sm text-muted">
-        {runningCount} running · {lockedCount} locked · refreshes every 10 seconds. Solved marks are reported by the student; check their PortSwigger screen to confirm.
-      </p>
 
       <Card>
         {attempts.isPending ? (
@@ -110,26 +139,6 @@ export default function WebLabExams() {
         )}
       </Card>
 
-      <Card title="Exam lab pools" className="mt-6">
-        <div className="space-y-2">
-          {(exams.data ?? []).map((q) => (
-            <details key={q.id} className="rounded-lg border border-line bg-panel">
-              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-white">
-                {q.title}: {q.pool_size} labs, {q.labs_per_attempt} drawn at random, {q.duration_minutes} minutes
-              </summary>
-              <ol className="list-decimal space-y-1 border-t border-line py-3 pl-10 pr-4 text-sm">
-                {(q.pool ?? []).map((l) => (
-                  <li key={l.url}>
-                    <a href={l.url} target="_blank" rel="noopener noreferrer" className="hover:text-accent hover:underline">
-                      {l.title}
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </details>
-          ))}
-        </div>
-      </Card>
     </>
   );
 }

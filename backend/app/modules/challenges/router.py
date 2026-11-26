@@ -82,6 +82,13 @@ def my_score(db: Session = Depends(get_db), user: User = Depends(current_user)):
     return {"user_id": user.id, "total_score": sum(s["points"] for s in solved), "solved_count": len(solved), "solved": solved}
 
 
+@router.get("/last-opened")
+def last_opened(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    # Read from the activity log (every challenge page view is a "challenge_view" event).
+    q = select(Event.challenge_id).where(Event.user_id == user.id, Event.kind == "challenge_view")
+    return {"challenge_id": db.scalar(q.order_by(Event.id.desc()).limit(1))}
+
+
 @router.get("/leaderboard")
 def leaderboard(db: Session = Depends(get_db), user: User = Depends(instructor)):
     solved = select(Submission.user_id, Submission.challenge_id).where(Submission.success.is_(True)).distinct().subquery()

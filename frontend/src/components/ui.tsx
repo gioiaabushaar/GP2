@@ -86,6 +86,7 @@ const buttonStyles = {
   primary: "bg-accent text-accent-ink hover:brightness-110",
   secondary: "border border-line bg-panel text-white hover:border-accent/60",
   ghost: "text-muted hover:text-white",
+  dangerGhost: "text-bad hover:bg-bad/10",
   danger: "bg-bad text-white hover:brightness-110",
 } as const;
 
