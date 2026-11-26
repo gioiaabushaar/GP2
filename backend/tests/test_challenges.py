@@ -189,3 +189,15 @@ def test_leaderboard_ranks_students_by_score(env):
 def test_students_cannot_see_leaderboard(env):
     client, _, student = env
     assert client.get("/api/challenges/leaderboard", headers=student).status_code == 403
+
+
+# ---------- Last opened challenge (the "Continue Active Lab" button) ----------
+
+def test_last_opened_challenge_comes_from_the_activity_log(env):
+    client, teacher, student = env
+    assert client.get("/api/challenges/last-opened", headers=student).json() == {"challenge_id": None}
+    a = client.post("/api/challenges", headers=teacher, json=new_challenge()).json()["id"]
+    b = client.post("/api/challenges", headers=teacher, json=new_challenge(title="Hidden File Forensics", category="Forensics", flag="NEXIS{hidden_file}")).json()["id"]
+    client.get(f"/api/challenges/{a}", headers=student)
+    client.get(f"/api/challenges/{b}", headers=student)
+    assert client.get("/api/challenges/last-opened", headers=student).json() == {"challenge_id": b}

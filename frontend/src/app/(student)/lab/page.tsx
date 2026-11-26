@@ -4,20 +4,21 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { lastLab } from "@/lib/insights";
 import { ButtonLink, EmptyState, PageHeader, Spinner } from "@/components/ui";
 
-/** "Active Lab" in the sidebar: open the running lab, else the last challenge opened. */
+/** "Active Lab" in the sidebar: open the running lab, else the last challenge opened (from the activity log). */
 export default function ActiveLabIndex() {
   const router = useRouter();
   const labs = useQuery({ queryKey: ["my-labs"], queryFn: api.myLabs });
-  const target = labs.data?.find((l) => l.status === "running")?.challenge_id ?? lastLab.get();
+  const lastOpened = useQuery({ queryKey: ["last-opened"], queryFn: api.lastOpened });
+  const target = labs.data?.find((l) => l.status === "running")?.challenge_id ?? lastOpened.data?.challenge_id;
+  const loading = labs.isPending || lastOpened.isPending;
 
   useEffect(() => {
-    if (!labs.isPending && target) router.replace(`/lab/${target}`);
-  }, [labs.isPending, target, router]);
+    if (!loading && target) router.replace(`/lab/${target}`);
+  }, [loading, target, router]);
 
-  if (labs.isPending || target) return <Spinner />;
+  if (loading || target) return <Spinner />;
   return (
     <>
       <PageHeader title="Active Lab" />

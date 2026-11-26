@@ -9,6 +9,9 @@ from alembic import context
 from app.core.config import settings
 from app.core.db import Base
 from app.core import models  # noqa: F401
+# Tables that live in their own modules instead of app/core/models.py:
+from app.modules.web_labs import models as web_lab_models  # noqa: F401
+from app.modules.deployments import models as deployment_models  # noqa: F401
 
 
 config = context.config
@@ -63,12 +66,6 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
-
-
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
 
 
 if context.is_offline_mode():

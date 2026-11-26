@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { deployments } from "@/lib/deployments";
 import { riskFor } from "@/lib/insights";
 import { Badge, Card, EmptyState, ErrorText, PageHeader, Spinner, StatCard, Table } from "@/components/ui";
 
 export default function InstructorDashboard() {
   const overview = useQuery({ queryKey: ["overview"], queryFn: api.instructorOverview });
   const board = useQuery({ queryKey: ["leaderboard"], queryFn: api.leaderboard });
-  const [recent] = useState(deployments.list);
+  const recent = useQuery({ queryKey: ["deployments"], queryFn: api.deployments });
 
   const o = overview.data;
   const successRate = o && o.submissions ? Math.round((o.correct_submissions / o.submissions) * 100) : null;
@@ -31,15 +29,17 @@ export default function InstructorDashboard() {
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Card title="Recent Lab Deployments" actions={<Badge tone="warn">Simulated</Badge>}>
-          {recent.length === 0 ? (
+          {recent.isPending ? (
+            <Spinner />
+          ) : !recent.data?.length ? (
             <EmptyState>No deployments yet. Use Deploy Labs to run one.</EmptyState>
           ) : (
             <Table head={["Module", "Containers", "Status"]}>
-              {recent.slice(0, 5).map((d) => (
+              {recent.data.slice(0, 5).map((d) => (
                 <tr key={d.id}>
-                  <td className="px-3 py-2">{d.module}</td>
-                  <td className="px-3 py-2">{d.status === "Running" ? d.students : 0}</td>
-                  <td className={`px-3 py-2 ${d.status === "Running" ? "text-ok" : "text-bad"}`}>{d.status}</td>
+                  <td className="px-3 py-2">{d.challenge_title}</td>
+                  <td className="px-3 py-2">{d.status === "running" ? d.students : 0}</td>
+                  <td className={`px-3 py-2 ${d.status === "running" ? "text-ok" : "text-bad"}`}>{d.status === "running" ? "Running" : "Refused"}</td>
                 </tr>
               ))}
             </Table>

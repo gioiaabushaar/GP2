@@ -117,7 +117,9 @@ def start(challenge_id: int, db: Session = Depends(get_db), user: User = Depends
 def mine(db: Session = Depends(get_db), user: User = Depends(current_user)):
     _reap_if_docker_available(db)
     sessions = db.scalars(select(LabSession).where(LabSession.user_id == user.id).order_by(LabSession.id.desc())).all()
-    return [{"id": s.id, "challenge_id": s.challenge_id, "status": s.status, "started_at": s.started_at} for s in sessions]
+    return [{"id": s.id, "challenge_id": s.challenge_id, "status": s.status, "started_at": s.started_at,
+             # When the reaper removes the lab (FR2); the website's countdown uses this.
+             "expires_at": (_aware(s.started_at) + timedelta(minutes=LAB_TTL_MINUTES)).isoformat()} for s in sessions]
 
 @router.delete("/{session_id}")
 def stop(session_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):

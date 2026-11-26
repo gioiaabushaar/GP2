@@ -30,15 +30,6 @@ export function riskFor(solved: number, total: number): Risk {
 
 export const riskTone = (r: Risk) => (r === "High" ? "bad" : r === "Moderate" ? "warn" : "ok");
 
-const LAST_LAB_KEY = "nexis.lastLab";
-export const lastLab = {
-  get: (): number | null => {
-    const v = Number(window.localStorage.getItem(LAST_LAB_KEY));
-    return Number.isInteger(v) && v > 0 ? v : null;
-  },
-  set: (id: number) => window.localStorage.setItem(LAST_LAB_KEY, String(id)),
-};
-
 /** SQLite drops the time zone, so a timestamp without one is treated as UTC (what the backend stores). */
 export function parseServerDate(iso: string) {
   return new Date(/Z$|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`);

@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { formatDate, lastLab, levelFor } from "@/lib/insights";
+import { formatDate, levelFor } from "@/lib/insights";
 import { Badge, ButtonLink, Card, EmptyState, ErrorText, PageHeader, Spinner, StatCard } from "@/components/ui";
 
 export default function StudentDashboard() {
@@ -12,7 +12,8 @@ export default function StudentDashboard() {
   const activity = useQuery({ queryKey: ["my-activity"], queryFn: api.myActivity });
   const labs = useQuery({ queryKey: ["my-labs"], queryFn: api.myLabs });
   const challenges = useQuery({ queryKey: ["challenges", {}], queryFn: () => api.challenges() });
-  const continueId = lastLab.get();
+  const lastOpened = useQuery({ queryKey: ["last-opened"], queryFn: api.lastOpened });
+  const continueId = lastOpened.data?.challenge_id;
 
   const titleOf = (id: number) => challenges.data?.find((c) => c.id === id)?.title ?? `Challenge #${id}`;
   const events = [

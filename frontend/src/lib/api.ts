@@ -13,7 +13,12 @@ import type {
   User,
   WebAttempt,
   WebExam,
+  WebExamInput,
   WebLibrary,
+  LibraryLab,
+  Course,
+  Deployment,
+  Capacity,
 } from "./types";
 
 const TOKEN_KEY = "nexis.token";
@@ -84,6 +89,8 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
 
 const post = <T>(path: string, data?: unknown) =>
   request<T>(path, { method: "POST", body: data === undefined ? undefined : JSON.stringify(data) });
+const patch = <T>(path: string, data: unknown) => request<T>(path, { method: "PATCH", body: JSON.stringify(data) });
+const del = (path: string) => request<null>(path, { method: "DELETE" });
 
 export const api = {
   login: (email: string, password: string) =>
@@ -99,6 +106,7 @@ export const api = {
   challenge: (id: number) => request<Challenge>(`/api/challenges/${id}`),
   submitFlag: (id: number, flag: string) => post<SubmitResult>(`/api/challenges/${id}/submit`, { flag }),
   myScore: () => request<MyScore>("/api/challenges/my-score"),
+  lastOpened: () => request<{ challenge_id: number | null }>("/api/challenges/last-opened"),
   leaderboard: () => request<LeaderboardRow[]>("/api/challenges/leaderboard"),
   createChallenge: (data: Record<string, unknown>) => post<Challenge>("/api/challenges", data),
 
@@ -121,4 +129,23 @@ export const api = {
   finishExam: (attempt_id: number) => post<WebAttempt>(`/api/web-labs/attempts/${attempt_id}/finish`),
   allExamAttempts: (quiz_id?: string) => request<WebAttempt[]>(`/api/web-labs/attempts${quiz_id ? `?quiz_id=${quiz_id}` : ""}`),
   unlockExam: (attempt_id: number) => post<WebAttempt>(`/api/web-labs/attempts/${attempt_id}/reset`),
+
+  // Instructor: exam setup and the library
+  createExam: (data: WebExamInput) => post<WebExam>("/api/web-labs/quizzes", data),
+  updateExam: (id: string, data: Partial<WebExamInput>) => patch<WebExam>(`/api/web-labs/quizzes/${id}`, data),
+  deleteExam: (id: string) => del(`/api/web-labs/quizzes/${id}`),
+  addExamLab: (id: string, lab: { title: string; url: string }) => post<WebExam>(`/api/web-labs/quizzes/${id}/labs`, lab),
+  removeExamLab: (id: string, labId: number) => request<WebExam>(`/api/web-labs/quizzes/${id}/labs/${labId}`, { method: "DELETE" }),
+  addLibraryLab: (lab: Omit<LibraryLab, "id">) => post<LibraryLab>("/api/web-labs/library", lab),
+  updateLibraryLab: (id: number, lab: Partial<Omit<LibraryLab, "id">>) => patch<LibraryLab>(`/api/web-labs/library/${id}`, lab),
+  deleteLibraryLab: (id: number) => del(`/api/web-labs/library/${id}`),
+
+  // Instructor: courses and deployments
+  courses: () => request<Course[]>("/api/courses"),
+  addCourse: (name: string) => post<Course>("/api/courses", { name }),
+  renameCourse: (id: number, name: string) => patch<Course>(`/api/courses/${id}`, { name }),
+  deleteCourse: (id: number) => del(`/api/courses/${id}`),
+  capacity: () => request<Capacity>("/api/deployments/capacity"),
+  deployments: () => request<Deployment[]>("/api/deployments"),
+  deploy: (data: { course_id: number; challenge_id: number; students: number }) => post<Deployment>("/api/deployments", data),
 };

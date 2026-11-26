@@ -249,3 +249,135 @@ def test_students_cannot_unlock(env):
     client, _, student = env
     attempt = client.post("/api/web-labs/quizzes/quiz-1/start", headers=student).json()
     assert client.post(f"/api/web-labs/attempts/{attempt['id']}/reset", headers=student).status_code == 403
+
+
+# ---------- Exams and library live in the database and are managed from the website ----------
+
+NEW_EXAM = {
+    "title": "Quiz 4",
+    "description": "JWT and OAuth labs.",
+    "duration_minutes": 10,
+    "labs_per_attempt": 2,
+    "rules": "Use Burp Suite.\nDo not open the solution.",
+}
+JWT_LAB = {"title": "JWT authentication bypass via unverified signature", "url": "https://portswigger.net/web-security/jwt/lab-jwt-authentication-bypass-via-unverified-signature"}
+OAUTH_LAB = {"title": "Authentication bypass via OAuth implicit flow", "url": "https://portswigger.net/web-security/oauth/lab-oauth-authentication-bypass-via-oauth-implicit-flow"}
+
+
+def test_default_exams_and_library_are_rows_in_the_database(env):
+    from sqlalchemy import func
+    from app.modules.web_labs.models import WebExam, WebExamLab, WebLibraryLab
+
+    client, _, student = env
+    with SessionLocal() as db:
+        exams = db.scalar(select(func.count()).select_from(WebExam))
+        pool = db.scalar(select(func.count()).select_from(WebExamLab))
+        library = db.scalar(select(func.count()).select_from(WebLibraryLab))
+    assert (exams, pool) == (3, 45)
+    assert client.get("/api/web-labs", headers=student).json()["total"] == library > 200
+
+
+def test_instructor_creates_an_exam_and_students_see_it(env):
+    client, teacher, student = env
+    r = client.post("/api/web-labs/quizzes", headers=teacher, json=NEW_EXAM)
+    assert r.status_code == 201
+    assert r.json()["id"] == "quiz-4" and r.json()["pool_size"] == 0
+    assert r.json()["rules"] == ["Use Burp Suite.", "Do not open the solution."]
+    assert "Quiz 4" in [q["title"] for q in client.get("/api/web-labs/quizzes", headers=student).json()]
+
+
+def test_exam_needs_enough_labs_before_it_can_start(env):
+    client, teacher, student = env
+    exam = client.post("/api/web-labs/quizzes", headers=teacher, json=NEW_EXAM).json()
+    client.post(f"/api/web-labs/quizzes/{exam['id']}/labs", headers=teacher, json=JWT_LAB)
+    assert client.post(f"/api/web-labs/quizzes/{exam['id']}/start", headers=student).status_code == 409
+    client.post(f"/api/web-labs/quizzes/{exam['id']}/labs", headers=teacher, json=OAUTH_LAB)
+    started = client.post(f"/api/web-labs/quizzes/{exam['id']}/start", headers=student)
+    assert started.status_code == 201 and len(started.json()["labs"]) == 2 and started.json()["seconds_left"] > 590
+
+
+def test_instructor_edits_an_exam(env):
+    client, teacher, student = env
+    r = client.patch("/api/web-labs/quizzes/quiz-1", headers=teacher, json={"duration_minutes": 10, "rules": "Only one rule."})
+    assert r.status_code == 200 and r.json()["duration_minutes"] == 10 and r.json()["rules"] == ["Only one rule."]
+    assert client.post("/api/web-labs/quizzes/quiz-1/start", headers=student).json()["seconds_left"] > 590
+
+
+def test_editing_an_exam_does_not_change_a_running_attempt(env):
+    client, teacher, student = env
+    client.post("/api/web-labs/quizzes/quiz-1/start", headers=student)
+    client.patch("/api/web-labs/quizzes/quiz-1", headers=teacher, json={"duration_minutes": 30})
+    assert client.get("/api/web-labs/attempts/current", headers=student).json()["seconds_left"] <= 420
+
+
+def test_instructor_removes_a_lab_from_an_exam_pool(env):
+    client, teacher, _ = env
+    pool = client.get("/api/web-labs/quizzes", headers=teacher).json()[0]["pool"]
+    r = client.delete(f"/api/web-labs/quizzes/quiz-1/labs/{pool[0]['id']}", headers=teacher)
+    assert r.status_code == 200 and r.json()["pool_size"] == len(pool) - 1
+
+
+def test_hidden_exam_is_not_shown_to_students_or_startable(env):
+    client, teacher, student = env
+    client.patch("/api/web-labs/quizzes/quiz-2", headers=teacher, json={"active": False})
+    assert "Quiz 2" not in [q["title"] for q in client.get("/api/web-labs/quizzes", headers=student).json()]
+    assert "Quiz 2" in [q["title"] for q in client.get("/api/web-labs/quizzes", headers=teacher).json()]
+    assert client.post("/api/web-labs/quizzes/quiz-2/start", headers=student).status_code == 404
+
+
+def test_exam_with_attempts_cannot_be_deleted(env):
+    client, teacher, student = env
+    client.post("/api/web-labs/quizzes/quiz-3/start", headers=student)
+    assert client.delete("/api/web-labs/quizzes/quiz-3", headers=teacher).status_code == 409
+    new = client.post("/api/web-labs/quizzes", headers=teacher, json=NEW_EXAM).json()
+    assert client.delete(f"/api/web-labs/quizzes/{new['id']}", headers=teacher).status_code == 204
+    assert "Quiz 4" not in [q["title"] for q in client.get("/api/web-labs/quizzes", headers=teacher).json()]
+
+
+def test_students_cannot_manage_exams(env):
+    client, _, student = env
+    assert client.post("/api/web-labs/quizzes", headers=student, json=NEW_EXAM).status_code == 403
+    assert client.patch("/api/web-labs/quizzes/quiz-1", headers=student, json={"duration_minutes": 99}).status_code == 403
+    assert client.post("/api/web-labs/quizzes/quiz-1/labs", headers=student, json=JWT_LAB).status_code == 403
+
+
+def test_exam_settings_are_validated(env):
+    client, teacher, _ = env
+    assert client.post("/api/web-labs/quizzes", headers=teacher, json={**NEW_EXAM, "duration_minutes": 0}).status_code == 422
+    assert client.post("/api/web-labs/quizzes", headers=teacher, json={**NEW_EXAM, "labs_per_attempt": 0}).status_code == 422
+    assert client.post("/api/web-labs/quizzes", headers=teacher, json={**NEW_EXAM, "title": "quiz 1"}).status_code == 409
+    bad = {"title": "Bad", "url": "javascript:alert(1)"}
+    assert client.post("/api/web-labs/quizzes/quiz-1/labs", headers=teacher, json=bad).status_code == 422
+
+
+def test_instructor_adds_edits_and_deletes_a_library_lab(env):
+    client, teacher, student = env
+    total = client.get("/api/web-labs", headers=student).json()["total"]
+    lab = client.post("/api/web-labs/library", headers=teacher, json={"topic": "Course labs", "title": "Week 3 lab", "url": "https://example.edu/week-3"})
+    assert lab.status_code == 201
+    assert client.get("/api/web-labs", headers=student).json()["total"] == total + 1
+    edited = client.patch(f"/api/web-labs/library/{lab.json()['id']}", headers=teacher, json={"title": "Week 3 lab (updated)"})
+    assert edited.json()["title"] == "Week 3 lab (updated)"
+    assert client.delete(f"/api/web-labs/library/{lab.json()['id']}", headers=teacher).status_code == 204
+    assert client.get("/api/web-labs", headers=student).json()["total"] == total
+
+
+def test_library_links_are_unique(env):
+    client, teacher, student = env
+    existing = client.get("/api/web-labs", headers=student).json()["topics"][0]["labs"][0]
+    r = client.post("/api/web-labs/library", headers=teacher, json={"topic": "Dup", "title": "Dup", "url": existing["url"]})
+    assert r.status_code == 409
+
+
+def test_students_cannot_change_the_library(env):
+    client, _, student = env
+    assert client.post("/api/web-labs/library", headers=student, json={"topic": "x", "title": "x", "url": "https://example.edu/x"}).status_code == 403
+
+
+def test_deleted_defaults_do_not_come_back_after_a_restart(env):
+    client, teacher, student = env
+    lab_id = client.get("/api/web-labs", headers=student).json()["topics"][0]["labs"][0]["id"]
+    client.delete(f"/api/web-labs/library/{lab_id}", headers=teacher)
+    total = client.get("/api/web-labs", headers=student).json()["total"]
+    with TestClient(app) as restarted:  # startup runs create_all again
+        assert restarted.get("/api/web-labs", headers=student).json()["total"] == total
